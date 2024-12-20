@@ -1,8 +1,19 @@
-import { Injectable } from '@angular/core';
+import { HttpClient } from '@angular/common/http';
+import { inject, Injectable } from '@angular/core';
 import { Router } from '@angular/router';
+import { BehaviorSubject, concatAll, map, Observable, of } from 'rxjs';
 
 interface SearchConfig {
   defaultPageSize?: number;
+}
+
+interface SearchResult {
+  num_found: number;
+  docs: {
+    title: string;
+    author_name: string[];
+    cover_edition_key: string;
+  }[];
 }
 
 export interface CurrentSearch {
@@ -10,6 +21,15 @@ export interface CurrentSearch {
   pageSize: number;
   page: number;
 }
+
+// export interface SearchResult {
+//   num_found: number;
+//   docs: {
+//     title: string;
+//     author_name: string[];
+//     cover_edition_key: string;
+//   }[];
+// }
 
 // BONUS: Use DI to update the config of SearchService to update page size
 export const SEARCH_CONFIG = undefined;
@@ -40,23 +60,81 @@ export const SEARCH_CONFIG = undefined;
  * @method submit - Submits the current search text that updates the current search parameters
  */
 
-@Injectable()
+@Injectable({
+  providedIn: 'root'
+})
 export class SearchService {
-  searchText$ = undefined;
-  pageSize$ = undefined;
-  pageIndex$ = undefined;
-  currentSearch$ = undefined;
+  private $http = inject(HttpClient);
+
+  searchText$ = of('');
+  pageSize$ = of(10);
+  pageIndex$ = of(0);
+  currentSearch$ = new BehaviorSubject<CurrentSearch | null>({
+    searchText: '',
+    pageSize: 10,
+    page: 1,
+  });
 
   constructor(private router: Router) {
     this._initFromUrl();
   }
 
   // BONUS: Keep the current search params in the URL that allow users to refresh the page and search again
-  private _initFromUrl() {}
+  private _initFromUrl() { }
 
-  set searchText(text: string) {}
+  set currentSearch(currentSearch: CurrentSearch) {
+    this.currentSearch$.next(currentSearch);
+  }
 
-  set page(page: number) {}
+  set searchText(text: string) {
+    this.searchText$ = of(text);
+  };
 
-  submit() {}
+  set page(page: number) { }
+
+  submit() {
+    console.log('submit start');
+    const newCurrentSearch: CurrentSearch = {
+      searchText: '',
+      pageSize: 10,
+      page: 1,
+    };
+    this.searchText$.subscribe((val) => {
+      newCurrentSearch.searchText = val;
+    });
+    this.pageSize$.subscribe(val => {
+      newCurrentSearch.pageSize = val;
+    });
+    this.pageIndex$.subscribe(val => {
+      const INDEX_OFFSET = 1;
+      newCurrentSearch.page = val + INDEX_OFFSET;
+    });
+    this.currentSearch = newCurrentSearch;
+
+    this.currentSearch$.subscribe(val => {
+      if (!val) {
+        return;
+      }
+      console.log(val);
+    });
+    console.log('submit end');
+  }
+
+  searchResults$ = this.currentSearch$
+    .pipe(map((data) => data ? this.searchBooks(data) : of({
+      num_found: 0,
+      docs: [],
+    })))
+    .pipe(concatAll());
+
+  searchBooks(currentSearch: CurrentSearch): Observable<SearchResult> {
+    console.log('searching');
+    const { searchText, pageSize, page } = currentSearch;
+
+    const searchQuery = searchText.split(' ').join('+').toLowerCase();
+
+    return this.$http.get<SearchResult>(
+      `https://openlibrary.org/search.json?q=${searchQuery}&page=${page}&limit=${pageSize}`
+    );
+  }
 }

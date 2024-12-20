@@ -4,10 +4,10 @@
       <input
         matInput
         placeholder="Enter a book title"
-        [value]="$search.searchText$ | async"
+        [value]="searchService.searchText$ | async"
         (input)="onSearchInputChange($event)"
       />
-      <button mat-icon-button matSuffix (click)="$search.submit()">
+      <button mat-icon-button matSuffix (click)="searchService.submit()">
         <mat-icon>search</mat-icon>
       </button>
     </mat-form-field>
@@ -32,9 +32,9 @@
   <mat-paginator
     class="border-0 border-t border-black border-solid"
     [length]="(searchResults$ | async)?.num_found ?? 0"
-    [pageIndex]="$search.pageIndex$ | async"
-    [pageSize]="$search.pageSize$ | async"
-    (page)="$search.page = $event.pageIndex + 1"
+    [pageIndex]="searchService.pageIndex$ | async"
+    [pageSize]="searchService.pageSize$ | async"
+    (page)="searchService.page = $event.pageIndex + 1"
     aria-label="Select page"
   />
   }

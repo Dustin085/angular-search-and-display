@@ -52,10 +52,10 @@ In [src/app/app.component.ts](src/app/app.component.ts) needs to handle:
 
 ## Checklist
 
-- [ ] Search input field accepts user's text input
-- [ ] Search button triggers API request when clicked
+- [O] Search input field accepts user's text input
+- [O] Search button triggers API request when clicked
   - [ ] Prevent API calls when search text is empty
-- [ ] Display search results on the page
+- [O] Display search results on the page
 - [ ] Pagination controls
   - [ ] Display total number of results
   - [ ] (Optional) Allow changing page size
