@@ -54,14 +54,14 @@ In [src/app/app.component.ts](src/app/app.component.ts) needs to handle:
 
 - [O] Search input field accepts user's text input
 - [O] Search button triggers API request when clicked
-  - [ ] Prevent API calls when search text is empty
+  - [O] Prevent API calls when search text is empty
 - [O] Display search results on the page
-- [ ] Pagination controls
-  - [ ] Display total number of results
-  - [ ] (Optional) Allow changing page size
-  - [ ] Make API calls to fetch paginated data when page changes
-  - [ ] Cancel pending requests when switching pages rapidly
-  - [ ] Should be reset to first page if new search text is submitted
+- [O] Pagination controls
+  - [O] Display total number of results
+  - [O] (Optional) Allow changing page size
+  - [O] Make API calls to fetch paginated data when page changes
+  - [O] Cancel pending requests when switching pages rapidly
+  - [O] Should be reset to first page if new search text is submitted
 - [ ] (Optional) URL parameter management
   - [ ] Preserve search parameters in URL
   - [ ] Load search from URL parameters on page load/refresh

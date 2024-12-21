@@ -1,7 +1,7 @@
 import { HttpClient } from '@angular/common/http';
 import { inject, Injectable } from '@angular/core';
 import { Router } from '@angular/router';
-import { BehaviorSubject, concatAll, map, Observable, of } from 'rxjs';
+import { BehaviorSubject, concatAll, map, Observable, of, share, shareReplay, switchMap, tap, throwError } from 'rxjs';
 
 interface SearchConfig {
   defaultPageSize?: number;
@@ -13,6 +13,7 @@ interface SearchResult {
     title: string;
     author_name: string[];
     cover_edition_key: string;
+    key: string;
   }[];
 }
 
@@ -84,13 +85,20 @@ export class SearchService {
 
   set currentSearch(currentSearch: CurrentSearch) {
     this.currentSearch$.next(currentSearch);
+    console.log(`new currentSearch:`, currentSearch);
   }
 
   set searchText(text: string) {
     this.searchText$ = of(text);
   };
 
-  set page(page: number) { }
+  set page(page: number) {
+    this.pageIndex$ = of(page);
+  };
+
+  set pageSize(pageSize: number) {
+    this.pageSize$ = of(pageSize);
+  };
 
   submit() {
     console.log('submit start');
@@ -99,33 +107,52 @@ export class SearchService {
       pageSize: 10,
       page: 1,
     };
-    this.searchText$.subscribe((val) => {
+    const subText = this.searchText$.subscribe((val) => {
       newCurrentSearch.searchText = val;
     });
-    this.pageSize$.subscribe(val => {
+    const subPageSize = this.pageSize$.subscribe(val => {
       newCurrentSearch.pageSize = val;
     });
-    this.pageIndex$.subscribe(val => {
+    const subPageIndex = this.pageIndex$.subscribe(val => {
       const INDEX_OFFSET = 1;
       newCurrentSearch.page = val + INDEX_OFFSET;
     });
     this.currentSearch = newCurrentSearch;
-
-    this.currentSearch$.subscribe(val => {
-      if (!val) {
-        return;
-      }
-      console.log(val);
-    });
+    subText.unsubscribe();
+    subPageSize.unsubscribe();
+    subPageIndex.unsubscribe();
     console.log('submit end');
   }
 
+
+  // searchResults$ = this.currentSearch$
+  //   .pipe(map((data) => {
+  //     if (!data) {
+  //       console.log('no data');
+  //       return of();
+  //     }
+  //     if (data.searchText === '') {
+  //       console.log('no searchText');
+  //       return of();
+  //     }
+  //     return this.searchBooks(data);
+  //     // concatAll可以把多個observable結合成一個，share可以讓async pipe共用取得的資料(不重複request)
+  //   })).pipe(concatAll()).pipe(shareReplay());
+
   searchResults$ = this.currentSearch$
-    .pipe(map((data) => data ? this.searchBooks(data) : of({
-      num_found: 0,
-      docs: [],
-    })))
-    .pipe(concatAll());
+    // switchMap可以把一個observable轉換成另一個observable，同時，會把之前還沒完成的observable取消
+    .pipe(switchMap((data) => {
+      if (!data) {
+        console.log('no data');
+        return of();
+      }
+      if (data.searchText === '') {
+        console.log('no searchText');
+        return of();
+      }
+      return this.searchBooks(data);
+      // share可以讓async pipe共用取得的資料(不重複request)
+    })).pipe(shareReplay());
 
   searchBooks(currentSearch: CurrentSearch): Observable<SearchResult> {
     console.log('searching');
@@ -135,6 +162,11 @@ export class SearchService {
 
     return this.$http.get<SearchResult>(
       `https://openlibrary.org/search.json?q=${searchQuery}&page=${page}&limit=${pageSize}`
-    );
+    )
+      .pipe(tap({ complete: () => console.log('search completed') }))
+      .pipe(map((data) => {
+        console.log(data);
+        return data;
+      }));
   }
 }
