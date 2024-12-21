@@ -7,7 +7,7 @@
         [value]="$searchService.searchText$ | async"
         (input)="onSearchInputChange($event)"
       />
-      <button mat-icon-button matSuffix (click)="$searchService.submit();$searchService.page=0">
+      <button mat-icon-button matSuffix (click)="$searchService.page=0;$searchService.submit();">
         <mat-icon>search</mat-icon>
       </button>
     </mat-form-field>
