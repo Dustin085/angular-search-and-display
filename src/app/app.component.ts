@@ -1,15 +1,16 @@
 import { CommonModule } from '@angular/common';
 import { HttpClient } from '@angular/common/http';
-import { Component, inject } from '@angular/core';
+import { Component, inject, OnInit } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatIconModule } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
 import { MatListModule } from '@angular/material/list';
-import { MatPaginatorIntl, MatPaginatorModule, PageEvent } from '@angular/material/paginator';
+import { MatPaginatorModule, PageEvent } from '@angular/material/paginator';
 import { Observable } from 'rxjs';
 import { CurrentSearch, SearchService } from './services/search.service';
+import { ActivatedRoute, Route, Router } from '@angular/router';
 
 interface SearchResult {
   num_found: number;
@@ -36,13 +37,18 @@ interface SearchResult {
   ],
   // BONUS: Use DI to update the config of SearchService to update page size
 })
-export class AppComponent {
+export class AppComponent implements OnInit {
   private $http = inject(HttpClient);
 
   // TODO: Create a SearchService and use DI to inject it
   // Check app/services/search.service.ts for the implementation
   $searchService = inject(SearchService);
-
+  constructor(private router: Router, private route: ActivatedRoute) { }
+  ngOnInit(): void {
+    // setTimeout(() => {
+    //   console.log(this.route.snapshot.queryParamMap)
+    // }, 0)
+  }
   // $search = {
   //   searchText$: of(''),
   //   pageSize$: of(10),

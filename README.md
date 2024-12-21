@@ -62,6 +62,9 @@ In [src/app/app.component.ts](src/app/app.component.ts) needs to handle:
   - [O] Make API calls to fetch paginated data when page changes
   - [O] Cancel pending requests when switching pages rapidly
   - [O] Should be reset to first page if new search text is submitted
-- [ ] (Optional) URL parameter management
-  - [ ] Preserve search parameters in URL
-  - [ ] Load search from URL parameters on page load/refresh
+- [O] (Optional) URL parameter management
+  - [O] Preserve search parameters in URL
+  - [O] Load search from URL parameters on page load/refresh
+
+## Issue
+- In search.service.is, without setTimeout() _initFromUrl() can only get empty url

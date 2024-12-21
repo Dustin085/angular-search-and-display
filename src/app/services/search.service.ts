@@ -1,6 +1,6 @@
 import { HttpClient } from '@angular/common/http';
 import { inject, Injectable } from '@angular/core';
-import { Router } from '@angular/router';
+import { ActivatedRoute, Router } from '@angular/router';
 import { BehaviorSubject, concatAll, map, Observable, of, share, shareReplay, switchMap, tap, throwError } from 'rxjs';
 
 interface SearchConfig {
@@ -76,12 +76,29 @@ export class SearchService {
     page: 1,
   });
 
-  constructor(private router: Router) {
+  constructor(private router: Router, private route: ActivatedRoute) {
     this._initFromUrl();
   }
 
   // BONUS: Keep the current search params in the URL that allow users to refresh the page and search again
-  private _initFromUrl() { }
+  private _initFromUrl() {
+    // 如果不setTimeout會得到空url
+    setTimeout(() => {
+      const queryParamMap = this.route.snapshot.queryParamMap;
+      const INDEX_OFFSET = 1;
+      const searchTextFromUrl = queryParamMap.get('searchText');
+      const pageSizeFromUrl = queryParamMap.get('pageSize');
+      const pageFromUrl = queryParamMap.get('page');
+      if (searchTextFromUrl) {
+        this.searchText = searchTextFromUrl;
+      }
+      this.pageSize = pageSizeFromUrl === null ? 10 : Number(pageSizeFromUrl);
+      this.page = pageFromUrl === null ? 0 : Number(pageFromUrl) - INDEX_OFFSET;
+      if (searchTextFromUrl != null) {
+        this.submit();
+      }
+    }, 0);
+  }
 
   set currentSearch(currentSearch: CurrentSearch) {
     this.currentSearch$.next(currentSearch);
@@ -118,6 +135,12 @@ export class SearchService {
       newCurrentSearch.page = val + INDEX_OFFSET;
     });
     this.currentSearch = newCurrentSearch;
+    // Preserve search params in URL
+    this.router.navigate([], {
+      relativeTo: this.route,
+      queryParams: newCurrentSearch,
+      queryParamsHandling: 'merge',
+    });
     subText.unsubscribe();
     subPageSize.unsubscribe();
     subPageIndex.unsubscribe();
