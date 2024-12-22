@@ -7,11 +7,14 @@
         [value]="$searchService.searchText$ | async"
         (input)="onSearchInputChange($event)"
       />
-      <button mat-icon-button matSuffix (click)="$searchService.page=0;$searchService.submit();">
+      <button mat-icon-button matSuffix (click)="$searchService.page = 0; $searchService.submit(); ">
         <mat-icon>search</mat-icon>
       </button>
     </mat-form-field>
   </form>
+  @if (isPendingBooksSearch()) {
+    <h3 class="mx-auto">Searching...</h3>
+  }
   <mat-list role="list" class="flex-grow min-h-0 overflow-y-auto">
     @for (result of (searchResults$ | async)?.docs; track result.key) {
     <mat-list-item role="listitem">
@@ -19,12 +22,12 @@
         matListItemAvatar
         [src]="
           'https://covers.openlibrary.org/b/olid/' +
-          result.cover_edition_key +
+          (result.cover_edition_key || result.edition_key[0]) +
           '-M.jpg'
         "
       />
       <div matListItemTitle>{{ result.title }}</div>
-      <div matListItemLine>{{ result.author_name.join(", ") }}</div>
+      <div matListItemLine>{{ result.author_name?.join(", ") }}</div>
     </mat-list-item>
     }
   </mat-list>

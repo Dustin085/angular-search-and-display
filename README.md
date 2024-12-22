@@ -67,4 +67,4 @@ In [src/app/app.component.ts](src/app/app.component.ts) needs to handle:
   - [O] Load search from URL parameters on page load/refresh
 
 ## Issue
-- In search.service.is, without setTimeout() _initFromUrl() can only get empty url
+- In search.service.is, without setTimeout(), _initFromUrl() => this.route.snapshot.queryParamMap can only get empty url

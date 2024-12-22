@@ -1,19 +1,21 @@
 import { HttpClient } from '@angular/common/http';
-import { inject, Injectable } from '@angular/core';
+import { inject, Injectable, signal } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
-import { BehaviorSubject, concatAll, map, Observable, of, share, shareReplay, switchMap, tap, throwError } from 'rxjs';
+import { BehaviorSubject, Observable, of, shareReplay, switchMap, tap } from 'rxjs';
 
 interface SearchConfig {
-  defaultPageSize?: number;
+  defaultPageSize: number;
 }
 
+// 有時會出現沒有author_name的物件
 interface SearchResult {
   num_found: number;
   docs: {
     title: string;
-    author_name: string[];
+    author_name?: string[];
     cover_edition_key: string;
     key: string;
+    edition_key: string[];
   }[];
 }
 
@@ -23,17 +25,10 @@ export interface CurrentSearch {
   page: number;
 }
 
-// export interface SearchResult {
-//   num_found: number;
-//   docs: {
-//     title: string;
-//     author_name: string[];
-//     cover_edition_key: string;
-//   }[];
-// }
-
 // BONUS: Use DI to update the config of SearchService to update page size
-export const SEARCH_CONFIG = undefined;
+export const SEARCH_CONFIG: SearchConfig = {
+  defaultPageSize: 10,
+};
 
 /**
  * Service for managing search state and operations
@@ -45,6 +40,7 @@ export const SEARCH_CONFIG = undefined;
  * @property {Observable<number>} pageSize$ - Observable of the current page size
  * @property {Observable<number>} pageIndex$ - Observable of the current page index (0-based)
  * @property {Observable<CurrentSearch | null>} currentSearch$ - Observable of the current search parameters
+ * @property {Signal<boolean>} isPending - Signal of isPending the api request
  */
 
 /**
@@ -55,6 +51,11 @@ export const SEARCH_CONFIG = undefined;
 /**
  * @method page - Updates the current page number
  * @param {number} page - The new page number (1-based)
+ */
+
+/**
+ * @method pageSize - Updates the current page size
+ * @param {number} pageSize - The new pageSize number
  */
 
 /**
@@ -75,6 +76,7 @@ export class SearchService {
     pageSize: 10,
     page: 1,
   });
+  isPending = signal<boolean>(false);
 
   constructor(private router: Router, private route: ActivatedRoute) {
     this._initFromUrl();
@@ -92,7 +94,7 @@ export class SearchService {
       if (searchTextFromUrl) {
         this.searchText = searchTextFromUrl;
       }
-      this.pageSize = pageSizeFromUrl === null ? 10 : Number(pageSizeFromUrl);
+      this.pageSize = pageSizeFromUrl === null ? SEARCH_CONFIG.defaultPageSize : Number(pageSizeFromUrl);
       this.page = pageFromUrl === null ? 0 : Number(pageFromUrl) - INDEX_OFFSET;
       if (searchTextFromUrl != null) {
         this.submit();
@@ -102,7 +104,6 @@ export class SearchService {
 
   set currentSearch(currentSearch: CurrentSearch) {
     this.currentSearch$.next(currentSearch);
-    console.log(`new currentSearch:`, currentSearch);
   }
 
   set searchText(text: string) {
@@ -118,13 +119,12 @@ export class SearchService {
   };
 
   submit() {
-    console.log('submit start');
     const newCurrentSearch: CurrentSearch = {
       searchText: '',
       pageSize: 10,
       page: 1,
     };
-    const subText = this.searchText$.subscribe((val) => {
+    const subText = this.searchText$.subscribe(val => {
       newCurrentSearch.searchText = val;
     });
     const subPageSize = this.pageSize$.subscribe(val => {
@@ -135,61 +135,45 @@ export class SearchService {
       newCurrentSearch.page = val + INDEX_OFFSET;
     });
     this.currentSearch = newCurrentSearch;
-    // Preserve search params in URL
+
+    // 把search params放到queryParams，若searchText就把queryParams清空
     this.router.navigate([], {
       relativeTo: this.route,
-      queryParams: newCurrentSearch,
+      queryParams: newCurrentSearch.searchText === '' ?
+        { searchText: null, pageSize: null, page: null } : newCurrentSearch,
       queryParamsHandling: 'merge',
     });
+
     subText.unsubscribe();
     subPageSize.unsubscribe();
     subPageIndex.unsubscribe();
-    console.log('submit end');
   }
-
-
-  // searchResults$ = this.currentSearch$
-  //   .pipe(map((data) => {
-  //     if (!data) {
-  //       console.log('no data');
-  //       return of();
-  //     }
-  //     if (data.searchText === '') {
-  //       console.log('no searchText');
-  //       return of();
-  //     }
-  //     return this.searchBooks(data);
-  //     // concatAll可以把多個observable結合成一個，share可以讓async pipe共用取得的資料(不重複request)
-  //   })).pipe(concatAll()).pipe(shareReplay());
 
   searchResults$ = this.currentSearch$
     // switchMap可以把一個observable轉換成另一個observable，同時，會把之前還沒完成的observable取消
-    .pipe(switchMap((data) => {
-      if (!data) {
-        console.log('no data');
-        return of();
+    .pipe(switchMap((currentSearch) => {
+      if (!currentSearch) {
+        return of(null);
       }
-      if (data.searchText === '') {
-        console.log('no searchText');
-        return of();
+      if (currentSearch.searchText === '') {
+        return of(null);
       }
-      return this.searchBooks(data);
-      // share可以讓async pipe共用取得的資料(不重複request)
+      return this.searchBooks(currentSearch);
+      // shareReplay可以讓async pipe共用取得的資料(不重複request)，shareReplay可以讓後來的subscriber也看到之前emit過的結果
     })).pipe(shareReplay());
 
   searchBooks(currentSearch: CurrentSearch): Observable<SearchResult> {
-    console.log('searching');
     const { searchText, pageSize, page } = currentSearch;
 
-    const searchQuery = searchText.split(' ').join('+').toLowerCase();
+    this.isPending.set(true);
 
+    const searchQuery = searchText.split(' ').join('+').toLowerCase();
     return this.$http.get<SearchResult>(
       `https://openlibrary.org/search.json?q=${searchQuery}&page=${page}&limit=${pageSize}`
     )
-      .pipe(tap({ complete: () => console.log('search completed') }))
-      .pipe(map((data) => {
-        console.log(data);
-        return data;
+      .pipe(tap({
+        error: (err) => { this.isPending.set(false); console.log(err) },
+        complete: () => { this.isPending.set(false); }
       }));
   }
 }
