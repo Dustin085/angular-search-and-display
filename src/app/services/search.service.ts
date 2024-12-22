@@ -13,9 +13,9 @@ interface SearchResult {
   docs: {
     title: string;
     author_name?: string[];
-    cover_edition_key: string;
+    cover_edition_key?: string;
     key: string;
-    edition_key: string[];
+    edition_key?: string[];
   }[];
 }
 

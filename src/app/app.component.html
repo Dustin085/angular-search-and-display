@@ -22,7 +22,7 @@
         matListItemAvatar
         [src]="
           'https://covers.openlibrary.org/b/olid/' +
-          (result.cover_edition_key || result.edition_key[0]) +
+          (result.cover_edition_key || (result.edition_key && result.edition_key[0])) +
           '-M.jpg'
         "
       />
