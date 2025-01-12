@@ -1,6 +1,6 @@
 import { CommonModule } from '@angular/common';
 import { HttpClient } from '@angular/common/http';
-import { Component, inject } from '@angular/core';
+import { AfterContentInit, afterNextRender, afterRender, AfterViewInit, Component, inject, input, Input, OnInit } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
 import { MatFormFieldModule } from '@angular/material/form-field';
@@ -9,6 +9,8 @@ import { MatInputModule } from '@angular/material/input';
 import { MatListModule } from '@angular/material/list';
 import { MatPaginatorModule, PageEvent } from '@angular/material/paginator';
 import { SearchService } from './services/search.service';
+import { ActivatedRoute, NavigationEnd, Router, RouterEvent } from '@angular/router';
+import { take } from 'rxjs';
 
 @Component({
   selector: 'app-root',
@@ -27,7 +29,8 @@ import { SearchService } from './services/search.service';
   // BONUS: Use DI to update the config of SearchService to update page size
 })
 export class AppComponent {
-  private $http = inject(HttpClient);
+
+  constructor() { }
 
   // TODO: Create a SearchService and use DI to inject it
   // Check app/services/search.service.ts for the implementation

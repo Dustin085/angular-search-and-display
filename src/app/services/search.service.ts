@@ -1,7 +1,7 @@
 import { HttpClient } from '@angular/common/http';
 import { inject, Injectable, signal } from '@angular/core';
-import { ActivatedRoute, Router } from '@angular/router';
-import { BehaviorSubject, Observable, of, shareReplay, switchMap, tap } from 'rxjs';
+import { ActivatedRoute, NavigationEnd, Router } from '@angular/router';
+import { BehaviorSubject, map, Observable, of, shareReplay, skipWhile, switchMap, take, tap } from 'rxjs';
 
 interface SearchConfig {
   defaultPageSize: number;
@@ -68,9 +68,9 @@ export const SEARCH_CONFIG: SearchConfig = {
 export class SearchService {
   private $http = inject(HttpClient);
 
-  searchText$ = of('');
-  pageSize$ = of(10);
-  pageIndex$ = of(0);
+  searchText$ = new BehaviorSubject('');
+  pageSize$ = new BehaviorSubject(10);
+  pageIndex$ = new BehaviorSubject(0);
   currentSearch$ = new BehaviorSubject<CurrentSearch | null>({
     searchText: '',
     pageSize: 10,
@@ -83,23 +83,24 @@ export class SearchService {
   }
 
   // BONUS: Keep the current search params in the URL that allow users to refresh the page and search again
-  private _initFromUrl() {
-    // 如果不setTimeout會得到空url
-    setTimeout(() => {
-      const queryParamMap = this.route.snapshot.queryParamMap;
-      const INDEX_OFFSET = 1;
-      const searchTextFromUrl = queryParamMap.get('searchText');
-      const pageSizeFromUrl = queryParamMap.get('pageSize');
-      const pageFromUrl = queryParamMap.get('page');
-      if (searchTextFromUrl) {
-        this.searchText = searchTextFromUrl;
+  public _initFromUrl() {
+    this.router.events.pipe(
+      skipWhile(event => !(event instanceof NavigationEnd)),
+      take(1),
+    ).subscribe(
+      () => {
+        const { queryParamMap } = this.route.snapshot;
+        const INDEX_OFFSET = 1;
+
+        this.searchText = queryParamMap.get('searchText') || '';
+        this.pageSize = Number(queryParamMap.get('pageSize')) || SEARCH_CONFIG.defaultPageSize;
+        this.page = Number(queryParamMap.get('page')) - INDEX_OFFSET || 0;
+
+        if (this.searchText$.value) {
+          this.submit();
+        }
       }
-      this.pageSize = pageSizeFromUrl === null ? SEARCH_CONFIG.defaultPageSize : Number(pageSizeFromUrl);
-      this.page = pageFromUrl === null ? 0 : Number(pageFromUrl) - INDEX_OFFSET;
-      if (searchTextFromUrl != null) {
-        this.submit();
-      }
-    }, 0);
+    );
   }
 
   set currentSearch(currentSearch: CurrentSearch) {
@@ -107,46 +108,32 @@ export class SearchService {
   }
 
   set searchText(text: string) {
-    this.searchText$ = of(text);
+    this.searchText$.next(text);
   };
 
   set page(page: number) {
-    this.pageIndex$ = of(page);
+    this.pageIndex$.next(page);
   };
 
   set pageSize(pageSize: number) {
-    this.pageSize$ = of(pageSize);
+    this.pageSize$.next(pageSize);
   };
 
   submit() {
-    const newCurrentSearch: CurrentSearch = {
-      searchText: '',
-      pageSize: 10,
-      page: 1,
+    const INDEX_OFFSET = 1;
+    this.currentSearch = {
+      searchText: this.searchText$.value,
+      pageSize: this.pageSize$.value,
+      page: this.pageIndex$.value + INDEX_OFFSET,
     };
-    const subText = this.searchText$.subscribe(val => {
-      newCurrentSearch.searchText = val;
-    });
-    const subPageSize = this.pageSize$.subscribe(val => {
-      newCurrentSearch.pageSize = val;
-    });
-    const subPageIndex = this.pageIndex$.subscribe(val => {
-      const INDEX_OFFSET = 1;
-      newCurrentSearch.page = val + INDEX_OFFSET;
-    });
-    this.currentSearch = newCurrentSearch;
 
     // 把search params放到queryParams，若searchText就把queryParams清空
     this.router.navigate([], {
       relativeTo: this.route,
-      queryParams: newCurrentSearch.searchText === '' ?
-        { searchText: null, pageSize: null, page: null } : newCurrentSearch,
+      queryParams: this.currentSearch$.value?.searchText != '' ?
+        this.currentSearch$.value : { searchText: null, pageSize: null, page: null },
       queryParamsHandling: 'merge',
     });
-
-    subText.unsubscribe();
-    subPageSize.unsubscribe();
-    subPageIndex.unsubscribe();
   }
 
   searchResults$ = this.currentSearch$
